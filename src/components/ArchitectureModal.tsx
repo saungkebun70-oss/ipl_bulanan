@@ -15,7 +15,13 @@ import {
   Monitor,
   Zap,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Globe,
+  Rocket,
+  CheckCircle2,
+  GitBranch,
+  ExternalLink,
+  Terminal
 } from 'lucide-react';
 import { Resident } from '../types';
 
@@ -32,7 +38,7 @@ export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({
   residents,
   onTriggerWebhookSuccess
 }) => {
-  const [activeTab, setActiveTab] = useState<'architecture' | 'schema' | 'webhook' | 'responsive'>('architecture');
+  const [activeTab, setActiveTab] = useState<'architecture' | 'schema' | 'webhook' | 'responsive' | 'vercel'>('architecture');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Webhook Simulator State
@@ -387,6 +393,7 @@ export async function POST(req: NextRequest) {
             { id: 'schema', label: 'Skema Database (SQL & RLS)', icon: Database },
             { id: 'webhook', label: 'Webhook Midtrans & Simulator', icon: Webhook },
             { id: 'responsive', label: 'Layout Adaptif (Mobile-First)', icon: Smartphone },
+            { id: 'vercel', label: '⚡ Deploy ke Vercel (CI/CD)', icon: Globe },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -721,6 +728,175 @@ export async function POST(req: NextRequest) {
                 >
                   Tutup Spesifikasi
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 5: Deploy ke Vercel Otomatis */}
+          {activeTab === 'vercel' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Ready Header Banner */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-900 to-teal-900 rounded-3xl text-white shadow-md border border-emerald-700/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-300 shrink-0 border border-white/10">
+                    <Rocket className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm sm:text-base">Konfigurasi Otomatis Vercel Siap</h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400 text-slate-950">
+                        Production Ready
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-200/90 mt-0.5">
+                      Proyek sudah dilengkapi <code>vercel.json</code>, endpoint serverless <code>api/index.ts</code>, dan workflow GitHub Actions CI/CD.
+                    </p>
+                  </div>
+                </div>
+
+                <a
+                  href="https://vercel.com/new"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2.5 bg-white text-slate-950 hover:bg-emerald-50 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+                >
+                  <span>Buka Vercel Dashboard</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              {/* 3 Core Deployment Options */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Method 1: Git Push */}
+                <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        Metode 1 (Paling Mudah)
+                      </span>
+                      <GitBranch className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <h5 className="font-bold text-sm text-slate-900">Hubungkan GitHub ke Vercel</h5>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Hubungkan repositori Git Anda di dashboard Vercel. Setiap kali Anda melakukan <code>git push origin main</code>, Vercel secara otomatis mem-build dan merilis versi baru.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Auto-deploy dalam ~45 detik</span>
+                  </div>
+                </div>
+
+                {/* Method 2: GitHub Actions */}
+                <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                        Metode 2 (Enterprise)
+                      </span>
+                      <Terminal className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h5 className="font-bold text-sm text-slate-900">GitHub Actions CI/CD</h5>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Pipeline otomatis di <code>.github/workflows/deploy-vercel.yml</code>. Menjalankan typecheck linting dan build sebelum mendeploy ke Vercel.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-blue-700 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Workflow terpasang otomatis</span>
+                  </div>
+                </div>
+
+                {/* Method 3: Vercel CLI */}
+                <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">
+                        Metode 3 (Terminal Cepat)
+                      </span>
+                      <Zap className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <h5 className="font-bold text-sm text-slate-900">Vercel CLI Instant</h5>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Deploy langsung dari konsol atau terminal laptop Anda hanya dengan satu baris perintah.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard('npx vercel --prod', 'cli')}
+                    className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-purple-700 font-mono font-bold flex items-center justify-between w-full hover:underline"
+                  >
+                    <span>npx vercel --prod</span>
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Step by step guide */}
+              <div className="p-5 bg-slate-900 rounded-2xl text-slate-100 space-y-4 font-mono text-xs">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-emerald-400" />
+                    <span className="font-bold text-white">Langkah Cepat Deploy ke Vercel via Git:</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard('git add .\ngit commit -m "Deploy to Vercel"\ngit push origin main', 'git')}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] text-emerald-400 font-sans transition-colors"
+                  >
+                    {copiedKey === 'git' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedKey === 'git' ? 'Tersalin' : 'Salin Perintah'}</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 text-slate-300">
+                  <p className="text-emerald-400 font-sans font-bold text-[11px]"># 1. Simpan dan push perubahan ke GitHub:</p>
+                  <pre className="bg-slate-950 p-3 rounded-xl overflow-x-auto text-emerald-300 border border-slate-800">
+{`git add .
+git commit -m "feat: setup vercel deployment"
+git push origin main`}
+                  </pre>
+
+                  <p className="text-emerald-400 font-sans font-bold text-[11px] pt-2"># 2. Impor di Vercel (https://vercel.com/new):</p>
+                  <ul className="list-disc list-inside space-y-1 font-sans text-slate-300 text-xs pl-2">
+                    <li>Pilih repositori <strong>IPL Saung Kebun</strong>.</li>
+                    <li>Preset otomatis mendeteksi <strong>Vite</strong>.</li>
+                    <li>Build command: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">npm run build</code>.</li>
+                    <li>Output directory: <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">dist</code>.</li>
+                    <li>Klik <strong>Deploy</strong> &mdash; selesai!</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Vercel.json Configuration Preview */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900">File vercel.json Terpasang:</span>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify({
+                      framework: "vite",
+                      buildCommand: "npm run build",
+                      outputDirectory: "dist",
+                      rewrites: [
+                        { source: "/api/(.*)", destination: "/api" },
+                        { source: "/(.*)", destination: "/index.html" }
+                      ]
+                    }, null, 2), 'vjson')}
+                    className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1 font-medium"
+                  >
+                    {copiedKey === 'vjson' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey === 'vjson' ? 'Tersalin' : 'Salin JSON'}</span>
+                  </button>
+                </div>
+                <pre className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono text-slate-700 overflow-x-auto">
+{`{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}`}
+                </pre>
               </div>
             </div>
           )}
