@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "Resident": {
+      "title": "Resident",
+      "description": "Perumahan Saung Kebun resident directory and lot records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique unit identifier like B3-01" },
+        "block": { "type": "string", "description": "Block designation (B3, B5, B6, B7, B8, B8-Ext)" },
+        "lotNumber": { "type": "number", "description": "Unit number in block" },
+        "unitCode": { "type": "string", "description": "Full display lot code (e.g. B3/01)" },
+        "name": { "type": "string", "description": "Name of head of household" },
+        "status": { "type": "string", "enum": ["ACTIVE", "VACANT", "INACTIVE"] },
+        "phone": { "type": "string", "description": "WhatsApp contact number" },
+        "monthlyFee": { "type": "number", "description": "Standard monthly tariff (100000)" }
+      },
+      "required": ["id", "block", "lotNumber", "unitCode", "status"]
+    },
+    "PaymentRecord": {
+      "title": "PaymentRecord",
+      "description": "Monthly IPL dues payment status and transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Invoice ID or month record key" },
+        "residentId": { "type": "string", "description": "Associated resident unit ID" },
+        "year": { "type": "number", "description": "Calendar year" },
+        "month": { "type": "string", "description": "Month abbreviation (Jan..Des)" },
+        "amount": { "type": "number", "description": "Fee amount" },
+        "status": { "type": "string", "enum": ["LUNAS", "MENUNGGAK", "BELUM_BAYAR", "KOSONG", "NONE"] },
+        "paymentMethod": { "type": "string", "description": "Payment method (QRIS, VA, KAS)" },
+        "paidAt": { "type": "string", "description": "Timestamp ISO string of payment" }
+      },
+      "required": ["id", "residentId", "year", "month", "status"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Neighborhood operational expense record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Expense ID" },
+        "date": { "type": "string", "description": "Expense date" },
+        "title": { "type": "string", "description": "Expense title / purpose" },
+        "category": { "type": "string", "description": "Category (Keamanan, Kebersihan, etc.)" },
+        "amount": { "type": "number", "description": "Expense amount in IDR" },
+        "status": { "type": "string", "enum": ["APPROVED", "PENDING_VERIFICATION", "REJECTED"] }
+      },
+      "required": ["id", "date", "title", "category", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/residents/{residentId}": {
+      "schema": "Resident",
+      "description": "Master resident database for Perumahan Saung Kebun"
+    },
+    "/payments/{paymentId}": {
+      "schema": "PaymentRecord",
+      "description": "Monthly dues records and audit status"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Financial expenditures and verification state"
+    }
+  }
+}
