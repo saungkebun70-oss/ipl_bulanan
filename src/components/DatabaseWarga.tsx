@@ -304,7 +304,8 @@ export const DatabaseWarga: React.FC<DatabaseWargaProps> = ({
         cellEditModal.resident.id,
         cellEditModal.month,
         status,
-        status === 'LUNAS' || status === 'MENUNGGAK' ? 100000 : 0
+        status === 'LUNAS' || status === 'MENUNGGAK' ? 100000 : 0,
+        cellEditModal.resident
       );
       setCellEditModal(null);
       if (onResidentUpdated) onResidentUpdated();

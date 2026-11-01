@@ -260,17 +260,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Bottom Card */}
       <div className="pt-6 border-t border-slate-200/80">
-        <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-900 mb-1">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>100% Bebas Biaya Server</span>
+        <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-950 mb-1">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+            </span>
+            <span>Cloud Firestore Realtime</span>
           </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Data kas dan 115 akun tersinkronisasi aman pada penyimpanan server lokal mandiri.
+          <p className="text-[11px] text-emerald-800 leading-relaxed">
+            Data 115 unit warga &amp; buku kas tersinkronisasi persisten dan real-time ke database cloud.
           </p>
-          <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[10px] text-emerald-700">
             <span>Perumahan Saung Kebun</span>
-            <span className="font-mono">v2.4</span>
+            <span className="font-mono font-semibold">115 Unit Sync</span>
           </div>
         </div>
       </div>

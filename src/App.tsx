@@ -22,12 +22,18 @@ import { ArchitectureModal } from './components/ArchitectureModal';
 import { Resident, Transaction, AuditLog, WhatsAppNotification, FinancialSummary, Role, OrganizationOfficer } from './types';
 import { getSummary, getResidents, getTransactions, getAuditLogs, getNotifications } from './lib/api';
 import { testFirestoreConnection } from './lib/firebase';
-import { Building2, Shield, Heart } from 'lucide-react';
+import {
+  subscribeToFirestoreResidents,
+  subscribeToFirestoreTransactions,
+  subscribeToFirestoreAuditLogs,
+  seedFirestoreIfEmpty
+} from './lib/firestoreService';
+import { Building2, Shield, Heart, Database, Radio, CheckCircle2, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'residents' | 'warga-portal' | 'admin'>('overview');
   
-  // Current active user session
+  // Current active user session (default to resident in Blok B5/21)
   const [currentUser, setCurrentUser] = useState<{
     role: Role;
     name: string;
@@ -38,11 +44,11 @@ export default function App() {
     resident?: Resident;
   }>({
     role: 'WARGA',
-    residentId: 'res-a-01',
-    name: 'Bpk. Hendra Gunawan',
-    title: 'Warga Blok A-01',
-    blok: 'A-01',
-    phone: '081289123456'
+    residentId: 'res-b5-21',
+    name: 'HARTONO (BP DONI - HUMAS)',
+    title: 'Warga Blok B05/21',
+    blok: 'B05/21',
+    phone: '081234567821'
   });
 
   // Data states
@@ -53,6 +59,11 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<WhatsAppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Firestore Real-time telemetry
+  const [isFirestoreLive, setIsFirestoreLive] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('Memulai koneksi...');
+  const [showLiveStatusDetails, setShowLiveStatusDetails] = useState(false);
 
   // Modals
   const [isSwitchAccountOpen, setIsSwitchAccountOpen] = useState(false);
@@ -103,10 +114,124 @@ export default function App() {
     }
   };
 
+  // Initial load and real-time Cloud Firestore listeners
   useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial fast baseline from server
     loadAllData();
+
+    // 2. Ensure connection and seed Firestore if empty
     testFirestoreConnection();
+    seedFirestoreIfEmpty().then((seeded) => {
+      if (seeded && isMounted) {
+        console.log('115 Data Warga Saung Kebun berhasil diinisialisasi ke Cloud Firestore');
+      }
+    }).catch(console.error);
+
+    // 3. Real-time Firestore snapshot listeners
+    const unsubResidents = subscribeToFirestoreResidents(
+      (liveResidents) => {
+        if (!isMounted) return;
+        if (liveResidents && liveResidents.length > 0) {
+          setResidents(liveResidents);
+          setIsFirestoreLive(true);
+          setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          setIsLoading(false);
+
+          // Update current user resident reference if active
+          setCurrentUser((prev) => {
+            if (prev.role === 'WARGA' && prev.residentId) {
+              const matched = liveResidents.find((r) => r.id === prev.residentId);
+              if (matched) {
+                return {
+                  ...prev,
+                  name: matched.nama,
+                  blok: matched.blok,
+                  resident: matched
+                };
+              }
+            }
+            return prev;
+          });
+        }
+      },
+      (err) => {
+        console.warn('Firestore live residents stream error:', err);
+      }
+    );
+
+    const unsubTransactions = subscribeToFirestoreTransactions(
+      (liveTxs) => {
+        if (!isMounted) return;
+        if (liveTxs && liveTxs.length > 0) {
+          setTransactions(liveTxs);
+        }
+      },
+      (err) => {
+        console.warn('Firestore live transactions stream error:', err);
+      }
+    );
+
+    const unsubAuditLogs = subscribeToFirestoreAuditLogs(
+      (liveLogs) => {
+        if (!isMounted) return;
+        if (liveLogs && liveLogs.length > 0) {
+          setAuditLogs(liveLogs);
+        }
+      },
+      (err) => {
+        console.warn('Firestore live audit logs stream error:', err);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubResidents();
+      unsubTransactions();
+      unsubAuditLogs();
+    };
   }, []);
+
+  // Dynamically calculate KPIs whenever residents or transactions change in real time
+  useEffect(() => {
+    if (residents.length > 0) {
+      const totalWarga = residents.length;
+      const totalWargaLunas = residents.filter(r => r.statusBulanIni === 'Lunas').length;
+      const totalWargaBelumBayar = totalWarga - totalWargaLunas;
+      const persentaseKepatuhan = Math.round((totalWargaLunas / totalWarga) * 100);
+
+      let saldoKas = 18500000;
+      let totalPemasukan = 0;
+      let totalPengeluaran = 0;
+
+      transactions.forEach(t => {
+        if (t.status === 'BERHASIL') {
+          if (t.tipe === 'PEMASUKAN') {
+            totalPemasukan += t.nominal;
+            saldoKas += t.nominal;
+          } else if (t.tipe === 'PENGELUARAN') {
+            totalPengeluaran += t.nominal;
+            saldoKas -= t.nominal;
+          }
+        }
+      });
+
+      const totalTunggakanWarga = residents.reduce((acc, r) => acc + (r.totalTunggakan || 0), 0);
+
+      setSummary(prev => ({
+        saldoKasSaatIni: saldoKas,
+        totalPemasukanBulanIni: totalPemasukan,
+        totalPengeluaranBulanIni: totalPengeluaran,
+        totalWarga,
+        totalWargaLunas,
+        totalWargaBelumBayar,
+        persentaseKepatuhan,
+        targetKasBulanIni: totalWarga * 100000,
+        totalTunggakanWarga
+      }));
+    }
+  }, [residents, transactions]);
 
   const handleSelectUser = (user: any) => {
     setCurrentUser(user);
@@ -169,13 +294,47 @@ export default function App() {
           onOpenArchitecture={() => setIsArchitectureOpen(true)}
         />
 
+        {/* Realtime Database Status Banner */}
+        <div className="bg-emerald-950 text-emerald-100 border-b border-emerald-800/80 px-3.5 sm:px-6 py-1.5 text-xs">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              </span>
+              <span className="font-semibold text-emerald-200 truncate">
+                ⚡ Realtime Database Aktif:
+              </span>
+              <span className="text-emerald-300/90 hidden sm:inline truncate">
+                Tersambung ke Google Cloud Firestore (asia-southeast1)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0 text-[11px]">
+              <span className="text-emerald-400 font-mono bg-emerald-900/80 px-2 py-0.5 rounded border border-emerald-700/60 hidden md:inline">
+                {residents.length} Warga Terdaftar
+              </span>
+              <span className="text-emerald-300 text-[10px]">
+                Sync: <span className="font-mono text-emerald-200">{lastSyncTime}</span>
+              </span>
+              <button
+                onClick={() => loadAllData()}
+                title="Refresh sinkronisasi realtime"
+                className="p-1 text-emerald-300 hover:text-white hover:bg-emerald-800/80 rounded transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Main Content Area - with pb-24 for mobile/tablet dock clearance */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-8">
           {isLoading ? (
             <div className="py-24 text-center">
               <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-sm font-semibold text-slate-700">Memuat Buku Kas Saung Kebun...</p>
-              <p className="text-xs text-slate-400 mt-1">Menghubungkan ke database server real-time</p>
+              <p className="text-xs text-slate-400 mt-1">Menghubungkan ke database Cloud Firestore real-time</p>
             </div>
           ) : (
             <>
@@ -249,29 +408,33 @@ export default function App() {
                         onClick={() => setAdminView('BENDAHARA')}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap min-h-[40px] ${
                           adminView === 'BENDAHARA'
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        💼 Panel Bendahara (Pembukuan)
+                        Panel Bendahara (Kasir &amp; Tagihan)
                       </button>
                       <button
                         onClick={() => setAdminView('KETUA')}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap min-h-[40px] ${
                           adminView === 'KETUA'
-                            ? 'bg-purple-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        👔 Panel Ketua (Supervisi)
+                        Panel Eksekutif Ketua
                       </button>
                     </div>
 
-                    <span className="text-[11px] text-slate-500 mr-2 hidden md:block">
-                      Akses Khusus Pengurus Perumahan Saung Kebun
-                    </span>
+                    <div className="flex items-center gap-2 px-2 text-xs text-slate-500 font-medium">
+                      <span>Peran Aktif:</span>
+                      <span className="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
+                        {currentUser.role} ({currentUser.name})
+                      </span>
+                    </div>
                   </div>
 
+                  {/* Render Subview */}
                   {adminView === 'BENDAHARA' ? (
                     <BendaharaAdmin
                       residents={residents}
@@ -293,41 +456,21 @@ export default function App() {
             </>
           )}
         </main>
-
-        {/* Desktop Footer (Hidden on mobile/tablet to avoid cluttering bottom thumb space) */}
-        <footer className="hidden lg:block bg-white border-t border-slate-200/80 mt-auto no-print">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between text-xs text-slate-500">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-emerald-600" />
-              <span className="font-semibold text-slate-700">Perumahan Saung Kebun · Paguyuban Warga</span>
-              <span>·</span>
-              <span>Sistem Transparansi Iuran IPL Mandiri</span>
-            </div>
-
-            <div className="flex items-center gap-4 text-slate-400">
-              <span>115 Akun Warga Terdaftar</span>
-              <span>·</span>
-              <span>WhatsApp Notifikasi Otomatis</span>
-              <span>·</span>
-              <span className="text-emerald-700 font-medium">100% Bebas Biaya Server</span>
-            </div>
-          </div>
-        </footer>
       </div>
 
-      {/* Mobile & Tablet Fixed Bottom Navigation Dock */}
+      {/* Mobile Sticky Bottom Navigation Dock */}
       <BottomNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        userRole={currentUser.role}
+        unpaidCount={summary?.totalWargaBelumBayar || 0}
         onOpenPayModal={() => {
           setPayTargetResident(activeResident);
           setIsPayModalOpen(true);
         }}
-        userRole={currentUser.role}
-        unpaidCount={summary?.totalWargaBelumBayar || 0}
       />
 
-      {/* Global Modals */}
+      {/* Account Switcher Modal (Demo Mode) */}
       <AccountSwitcherModal
         isOpen={isSwitchAccountOpen}
         onClose={() => setIsSwitchAccountOpen(false)}
@@ -337,33 +480,43 @@ export default function App() {
         onSelectUser={handleSelectUser}
       />
 
+      {/* Digital Payment Modal (QRIS & VA) */}
       <PaymentModal
         isOpen={isPayModalOpen}
-        onClose={() => setIsPayModalOpen(false)}
-        resident={payTargetResident}
+        onClose={() => {
+          setIsPayModalOpen(false);
+          setPayTargetResident(null);
+        }}
+        resident={payTargetResident || activeResident}
         residents={residents}
         onPaymentSuccess={handlePaymentSuccess}
       />
 
+      {/* Digital Receipt / Kwitansi Modal */}
       <DigitalReceiptModal
         isOpen={isReceiptOpen}
-        onClose={() => setIsReceiptOpen(false)}
+        onClose={() => {
+          setIsReceiptOpen(false);
+          setSelectedTxForReceipt(null);
+        }}
         transaction={selectedTxForReceipt}
-        resident={residents.find(r => r.id === selectedTxForReceipt?.wargaId) || null}
       />
 
+      {/* WhatsApp Logs Modal */}
       <WhatsAppLogModal
         isOpen={isWhatsAppLogsOpen}
         onClose={() => setIsWhatsAppLogsOpen(false)}
         notifications={notifications}
       />
 
+      {/* Audit Trail Modal */}
       <AuditTrailModal
         isOpen={isAuditLogsOpen}
         onClose={() => setIsAuditLogsOpen(false)}
         logs={auditLogs}
       />
 
+      {/* Technical Architecture & Webhook Documentation Modal */}
       <ArchitectureModal
         isOpen={isArchitectureOpen}
         onClose={() => setIsArchitectureOpen(false)}

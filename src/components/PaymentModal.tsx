@@ -107,7 +107,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         months,
         amount: totalAmount,
         method,
-        actorName: `${currentResident.nama} (${currentResident.blok})`
+        actorName: `${currentResident.nama} (${currentResident.blok})`,
+        residentObj: currentResident
       });
 
       setResultData(res);
